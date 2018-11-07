@@ -6,6 +6,7 @@ extern crate serde_json;
 #[macro_use]
 extern crate structopt;
 
+mod error;
 mod prettify;
 
 use std::fs::{File, OpenOptions};
@@ -13,14 +14,13 @@ use std::io;
 use std::path::PathBuf;
 use structopt::StructOpt;
 
+use self::error::Error;
 use self::prettify::value;
 
 use json5::Deserializer as Json5Deserializer;
 use pretty::Arena;
 use serde::Deserialize;
 use serde_json::Value;
-
-struct Error;
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "jsonpp5", about = "jsonpp5 usage")]
@@ -47,40 +47,35 @@ struct Opt {
 }
 
 impl Opt {
-    fn with_input<T, F>(&self, mut f: F) -> Result<T, Error>
+    fn with_input<T, E, F>(&self, mut f: F) -> Result<T, Error>
     where
-        F: FnMut(&mut io::Read) -> Result<T, Error>,
+        F: FnMut(&mut io::Read) -> Result<T, E>,
+        E: Into<Error>,
     {
         if self.stdin {
             let stdin = io::stdin();
             let mut handler = stdin.lock();
-            f(&mut handler)
+            f(&mut handler).map_err(|e| e.into())
         } else if let Some(ref path) = self.input {
-            let mut file = File::open(path).map_err(|_| Error)?;
-            f(&mut file)
+            let mut file = File::open(path)?;
+            f(&mut file).map_err(|e| e.into())
         } else {
-            Err(Error)
+            Err(Error::NoInput)
         }
     }
 
-    fn with_output<T, F>(&self, mut f: F) -> Result<T, Error>
+    fn with_output<T, E, F>(&self, mut f: F) -> Result<T, Error>
     where
-        F: FnMut(&mut io::Write) -> Result<T, Error>,
+        F: FnMut(&mut io::Write) -> Result<T, E>,
+        E: Into<Error>,
     {
         if let Some(ref path) = self.output {
-            let mut file = OpenOptions::new()
-                .write(true)
-                .create(true)
-                .open(path)
-                .map_err(|e| {
-                    eprintln!("{}", e);
-                    Error
-                })?;
-            f(&mut file)
+            let mut file = OpenOptions::new().write(true).create(true).open(path)?;
+            f(&mut file).map_err(|e| e.into())
         } else {
             let stdout = io::stdout();
             let mut handler = stdout.lock();
-            f(&mut handler)
+            f(&mut handler).map_err(|e| e.into())
         }
     }
 }
@@ -88,17 +83,16 @@ impl Opt {
 fn run(opt: Opt) -> Result<(), Error> {
     let mut input = String::new();
 
-    opt.with_input(|r| r.read_to_string(&mut input).map_err(|_| Error))?;
+    opt.with_input(|r| r.read_to_string(&mut input))?;
 
-    let mut de = Json5Deserializer::from_str(&input).map_err(|_| Error)?;
-    let js_val = Value::deserialize(&mut de).map_err(|_| Error)?;
+    let mut de = Json5Deserializer::from_str(&input)?;
+    let js_val = Value::deserialize(&mut de)?;
     let max_line_width = opt.line_width;
 
     opt.with_output(|out| {
         value::<_, ()>(&js_val, &Arena::new())
             .1
             .render(max_line_width, out)
-            .map_err(|e| Error)
     })?;
 
     Ok(())
@@ -108,6 +102,6 @@ fn main() {
     let opt = Opt::from_args();
     match run(opt) {
         Ok(_) => {}
-        Err(_) => eprintln!("Failed"),
+        Err(err) => eprintln!("{}", err),
     }
 }

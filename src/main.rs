@@ -1,9 +1,7 @@
 extern crate json5;
 extern crate pretty;
 extern crate serde;
-#[macro_use]
 extern crate serde_json;
-#[macro_use]
 extern crate structopt;
 
 mod error;
@@ -23,7 +21,7 @@ use serde::Deserialize;
 use serde_json::Value;
 
 #[derive(Debug, StructOpt)]
-#[structopt(name = "jsonpp5", about = "jsonpp5 usage")]
+#[structopt(name = "jsonpp5", about = "jsonpp5 file | --stdin")]
 struct Opt {
     /// Use stdin as input
     #[structopt(long)]

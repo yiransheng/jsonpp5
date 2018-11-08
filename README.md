@@ -10,7 +10,7 @@ Personal use case, hook up with `vim`:
 ```vim
 autocmd FileType json setlocal formatprg=jsonpp5\ --stdin
 ```
-Allows for editing json more of less like javascript, and format it back to JSON, see [json5](https://github.com/callum-oakley/json5-rs) for supported syntax.
+Allows for editing json more of less like javascript, and format it back to JSON, see [json5](https://github.com/callum-oakley/json5-rs) crate for supported syntax.
 
 ## Differences with `serde_json` pretty print
 

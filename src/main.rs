@@ -102,6 +102,6 @@ fn main() {
     let opt = Opt::from_args();
     match run(opt) {
         Ok(_) => {}
-        Err(err) => eprintln!("{}", err),
+        Err(err) => eprintln!("[ERROR] {}", err),
     }
 }
